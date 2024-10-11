@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة دورة الحظ المخصصة</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+
+        #wheel {
+            margin: 20px auto;
+            width: 300px;
+            height: 300px;
+            border: 10px solid #000;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        #pointer {
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-top: 30px solid red; /* المثلث ينظر للأسفل */
+            position: absolute;
+            top: -40px; /* المثلث في الأعلى */
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        #startButton, #resetButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #28a745; /* لون زر البداية */
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        #resetButton {
+            background-color: #dc3545; /* لون زر المسح أحمر غامق */
+        }
+
+            #startButton:hover, #resetButton:hover {
+                opacity: 0.8; /* تغيير الشفافية عند التمرير */
+            }
+
+        #inputSection {
+            margin-top: 30px; /* تحريك حقل الإدخال أسفل */
+        }
+
+            #inputSection input {
+                width: 40%; /* تصغير حجم حقل الإدخال */
+                padding: 5px;
+                font-size: 14px; /* تصغير حجم النص */
+            }
+
+        #winnerMessage {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            font-weight: bold;
+            color: #fff;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>لعبة دورة الحظ المخصصة</h1>
+
+    <div id="wheel">
+        <div id="pointer"></div>
+        <canvas id="wheelCanvas" width="300" height="300"></canvas>
+    </div>
+
+    <div id="inputSection">
+        <label for="sectorsInput">أدخل خيارًا واضغط إنتر:</label><br>
+        <input type="text" id="sectorsInput" placeholder="اكتب خيارًا هنا..."><br>
+        <button id="updateButton">تحديث العجلة</button>
+    </div>
+
+    <button id="startButton">ابدأ الدوران</button>
+    <button id="resetButton">إعادة اللعبة</button>
+
+    <div id="winnerMessage"></div>
+    <p id="result"></p>
+
+    <script>
+        const wheelCanvas = document.getElementById('wheelCanvas');
+        const ctx = wheelCanvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const updateButton = document.getElementById('updateButton');
+        const resetButton = document.getElementById('resetButton');
+        const result = document.getElementById('result');
+        const sectorsInput = document.getElementById('sectorsInput');
+        const winnerMessage = document.getElementById('winnerMessage');
+
+        let sectors = [];
+        let colors = [];
+        let angle = 0;
+        let spinSpeed = 0;
+        let isSpinning = false;
+
+        // توليد لون عشوائي
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // رسم العجلة
+        function drawWheel() {
+            const numSectors = sectors.length;
+            const arcSize = (2 * Math.PI) / Math.max(numSectors, 1);
+            ctx.clearRect(0, 0, 300, 300); // تنظيف العجلة قبل الرسم
+            for (let i = 0; i < numSectors; i++) {
+                const startAngle = angle + i * arcSize;
+                ctx.beginPath();
+                ctx.fillStyle = colors[i % colors.length];
+                ctx.moveTo(150, 150);
+                ctx.arc(150, 150, 150, startAngle, startAngle + arcSize);
+                ctx.fill();
+                ctx.stroke();
+                ctx.save();
+
+                ctx.fillStyle = "#FFF";
+                ctx.translate(150, 150);
+                ctx.rotate(startAngle + arcSize / 2);
+                ctx.textAlign = "center";
+                ctx.fillText(sectors[i], 100, 10);
+                ctx.restore();
+            }
+        }
+
+        // بدء الدوران
+        function spinWheel() {
+            if (!isSpinning && sectors.length > 0) {
+                const spins = Math.floor(Math.random() * 5) + 1; // عدد دورات عشوائي بين 1 و 5
+                spinSpeed = Math.random() * 0.1 + 0.2;
+                isSpinning = true;
+                rotateWheel(spins);
+            }
+        }
+
+        // تدوير العجلة
+        function rotateWheel(spins) {
+            angle += spinSpeed;
+            spinSpeed *= 0.98;
+            ctx.clearRect(0, 0, 300, 300);
+            drawWheel();
+            if (spinSpeed > 0.002) {
+                requestAnimationFrame(() => rotateWheel(spins));
+            } else {
+                isSpinning = false;
+                const winningSector = Math.floor((angle / (2 * Math.PI / sectors.length)) % sectors.length);
+                showResult(sectors[winningSector]);
+            }
+        }
+
+        // عرض النتيجة مع فترة زمنية
+        function showResult(winningSector) {
+            winnerMessage.innerHTML = `مبروك! لقد ربحت: <span style="color: #ffcc00;">${winningSector}</span>`;
+            winnerMessage.style.display = 'block';
+
+            // إخفاء الرسالة بعد 3 ثوانٍ
+            setTimeout(() => {
+                winnerMessage.style.display = 'none';
+            }, 3000); // 3000 ميلي ثانية = 3 ثوانٍ
+        }
+
+        // تحديث العجلة بناءً على إدخال المستخدم
+        updateButton.addEventListener('click', () => {
+            const inputValue = sectorsInput.value.trim();
+            if (inputValue && !sectors.includes(inputValue)) {
+                sectors.push(inputValue);
+                colors.push(getRandomColor());
+                drawWheel();
+                result.innerHTML = '';
+                sectorsInput.value = ''; // تنظيف حقل الإدخال
+            } else {
+                result.innerHTML = "الرجاء إدخال خيار صالح وغير مكرر.";
+            }
+        });
+
+        // إعادة تعيين العجلة
+        resetButton.addEventListener('click', () => {
+            sectors = [];
+            colors = [];
+            angle = 0; // إعادة تعيين الزاوية
+            drawWheel();
+            result.innerHTML = '';
+            winnerMessage.style.display = 'none'; // إخفاء الرسالة عند إعادة تعيين اللعبة
+        });
+
+        // بدء الدوران عند الضغط على زر البداية
+        startButton.addEventListener('click', spinWheel);
+    </script>
+</body>
+</html>
